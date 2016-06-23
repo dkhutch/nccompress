@@ -10,7 +10,7 @@ import operator
 import itertools as it
 from warnings import warn
 
-def ncinfo(files, hidedims, ignoretime, vars=None):
+def ncinfo(files, hidedims, ignoretime, vars=None, history_only=False):
 
     if isinstance(files, list):
         try:
@@ -25,6 +25,8 @@ def ncinfo(files, hidedims, ignoretime, vars=None):
 
     varnames = ncobj.variables.keys()
     varname_maxlen =  len(max(varnames, key=len))
+    if history_only:
+        varnames=[]
 
     pr_varnames = []
     pr_dimensions = []
@@ -70,17 +72,22 @@ def ncinfo(files, hidedims, ignoretime, vars=None):
             long_name =  var.__getattribute__("long_name")
         except AttributeError:
             long_name =  ''
-        # print fmt.format(varname,varname_maxlen,var.shape,long_name)
         pr_varnames.append(str(varname))
         pr_dimensions.append(str(var.shape))
         pr_longnames.append(str(long_name))
-        # print varname, '::', var.shape, '::', var.getncattr("long_name")
 
-    fmt = '{0:{1}} :: {2:{3}} :: {4}'
-    pr_varnames_maxlen = len(max(pr_varnames, key=len))
-    pr_dimensions_maxlen = len(max(pr_dimensions, key=len))
-    for varstr, dimstr, namestr in zip(pr_varnames, pr_dimensions, pr_longnames):
-        print fmt.format(varstr,pr_varnames_maxlen,dimstr,pr_dimensions_maxlen,namestr)
+    if not history_only and pr_varnames:
+        fmt = '{0:{1}} :: {2:{3}} :: {4}'
+        pr_varnames_maxlen = len(max(pr_varnames, key=len))
+        pr_dimensions_maxlen = len(max(pr_dimensions, key=len))
+        for varstr, dimstr, namestr in zip(pr_varnames, pr_dimensions, pr_longnames):
+            print fmt.format(varstr,pr_varnames_maxlen,dimstr,pr_dimensions_maxlen,namestr)
+
+    if 'history' in ncobj.ncattrs():
+        print 'history :: ' + ncobj.history[:]
+    else:
+        if history_only:
+            print 'No history found'
 
 
 if __name__ == '__main__':
@@ -117,14 +124,14 @@ if __name__ == '__main__':
     parser.add_argument("-d","--dims", help="Show dimensions", action='store_true')
     parser.add_argument("-a","--aggregate", help="Aggregate multiple netCDF files into one dataset", action='store_true')
     parser.add_argument("-va","--vars", help="Show info for only specify variables", action='append')
+    parser.add_argument("-hi","--history", help="Show only netcdf history", action='store_true')
     parser.add_argument("inputs", help="netCDF files", nargs='+')
     args = parser.parse_args()
 
     verbose = args.verbose
 
     if args.aggregate:
-        ncinfo(args.inputs, not args.dims, not args.time, args.vars)
-        # ncinfo(args.inputs, not args.dims, not args.time)
+        ncinfo(args.inputs, not args.dims, not args.time, args.vars, args.history)
     else:
         for ncinput in args.inputs:
-            ncinfo(ncinput, not args.dims, not args.time, args.vars)
+            ncinfo(ncinput, not args.dims, not args.time, args.vars, args.history)
